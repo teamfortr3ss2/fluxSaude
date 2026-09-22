@@ -1,0 +1,122 @@
+.form-card {
+  background: var(--cor-fundo-card);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+  padding: var(--espaco-lg);
+  max-width: 500px;
+}
+
+.campo {
+  margin-bottom: var(--espaco-md);
+}
+
+.campo label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+}
+
+.campo textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.erro-campo {
+  color: var(--cor-perigo);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.btn-primario {
+  background-color: var(--cor-primaria);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--raio-borda);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.btn-primario:hover:not(:disabled) {
+  background-color: var(--cor-primaria-hover);
+}
+
+/* Truque de grid: como dt/dd são filhos diretos e alternados,
+   o navegador os distribui automaticamente em 2 colunas por linha */
+.detalhes-lista {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  row-gap: 0.85rem;
+  column-gap: var(--espaco-md);
+  background: var(--cor-fundo-card);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+  padding: var(--espaco-lg);
+  margin-bottom: var(--espaco-lg);
+}
+
+.detalhes-lista dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+  align-self: start;
+  padding-top: 0.15rem;
+}
+
+.detalhes-lista dd {
+  margin: 0;
+}
+
+@media (max-width: 500px) {
+  .detalhes-lista {
+    grid-template-columns: 1fr;
+    row-gap: 0.25rem;
+  }
+  .detalhes-lista dt {
+    margin-top: 0.5rem;
+  }
+}
+
+.acoes-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-sm);
+}
+
+.btn-secundario {
+  background: white;
+  border: 2px solid var(--cor-primaria);
+  color: var(--cor-primaria);
+  padding: 0.5rem 1rem;
+  border-radius: var(--raio-borda);
+  font-weight: 600;
+}
+
+.btn-secundario:hover:not(:disabled) {
+  background: var(--cor-primaria);
+  color: white;
+}
+
+.btn-perigo {
+  background: white;
+  border: 2px solid var(--cor-texto-suave);
+  color: var(--cor-texto-suave);
+  padding: 0.5rem 1rem;
+  border-radius: var(--raio-borda);
+  font-weight: 600;
+}
+
+.btn-perigo:hover:not(:disabled) {
+  background: var(--cor-texto-suave);
+  color: white;
+}

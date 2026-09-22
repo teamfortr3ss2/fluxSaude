@@ -1,0 +1,28 @@
+.app-header {
+  background-color: var(--cor-primaria);
+  color: #ffffff;
+  padding: var(--espaco-md) var(--espaco-lg);
+  margin-bottom: var(--espaco-lg);
+}
+
+.app-header h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.25rem;
+  letter-spacing: 0.5px;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 var(--espaco-md) var(--espaco-lg);
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 0 var(--espaco-sm) var(--espaco-md);
+  }
+  .app-header {
+    padding: var(--espaco-md);
+  }
+}

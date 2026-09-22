@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend-tests:
+    name: Backend (PHPUnit)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: vlab_test
+          POSTGRES_USER: vlab_user
+          POSTGRES_PASSWORD: vlab_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vlab_user -d vlab_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo, pdo_pgsql, pgsql, zip
+
+      - name: Instalar dependências (Composer)
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Preparar ambiente de testes
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Rodar testes
+        working-directory: backend
+        run: php artisan test
+
+  frontend-tests:
+    name: Frontend (Vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências (npm)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Rodar testes
+        working-directory: frontend
+        run: npm run test
+
+      - name: Build de produção (garante que o projeto compila)
+        working-directory: frontend
+        run: npm run build

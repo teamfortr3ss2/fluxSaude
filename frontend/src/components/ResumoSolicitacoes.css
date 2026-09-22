@@ -1,0 +1,45 @@
+.resumo-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--espaco-md);
+  margin-bottom: var(--espaco-lg);
+}
+
+.resumo-card {
+  background: var(--cor-fundo-card);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+  padding: var(--espaco-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.resumo-numero {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.resumo-label {
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+  margin-top: 0.25rem;
+}
+
+.resumo-total {
+  background: var(--cor-primaria);
+  border-color: var(--cor-primaria);
+}
+
+.resumo-total .resumo-numero,
+.resumo-total .resumo-label {
+  color: white;
+}
+
+.resumo-RECEBIDA .resumo-numero { color: #a30d15; }
+.resumo-EM_ANALISE .resumo-numero { color: #7a5b00; }
+.resumo-AGENDADA .resumo-numero { color: #0a5aa3; }
+.resumo-CONCLUIDA .resumo-numero { color: #1e6b2e; }
+.resumo-CANCELADA .resumo-numero { color: #5a5a5a; }

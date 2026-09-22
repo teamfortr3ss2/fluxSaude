@@ -1,0 +1,420 @@
+openapi: 3.0.3
+info:
+  title: FluxSaúde API
+  description: >
+    API REST para registro e acompanhamento de solicitações de atendimento
+    em unidades públicas de saúde. Desenvolvida como desafio técnico para
+    seleção do V-Lab/CIn-UFPE.
+  version: "1.0.0"
+  contact:
+    name: Sérgio Tavares Coutinho Moreira Lima
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Ambiente local (Docker Compose)
+
+tags:
+  - name: Solicitações
+    description: Operações sobre solicitações de atendimento
+  - name: Sistema
+    description: Endpoints de infraestrutura e monitoramento
+
+paths:
+  /health:
+    get:
+      tags: [Sistema]
+      summary: Verifica a saúde da API e a conexão com o banco de dados
+      responses:
+        '200':
+          description: Aplicação e banco de dados funcionando normalmente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: "ok"
+                services:
+                  api: "ok"
+                  database: "ok"
+                timestamp: "2026-09-22T18:05:37+00:00"
+        '503':
+          description: Aplicação funcionando, mas banco de dados indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: "degraded"
+                services:
+                  api: "ok"
+                  database: "unavailable"
+                timestamp: "2026-09-22T18:05:37+00:00"
+  /solicitacoes:
+    get:
+      tags: [Solicitações]
+      summary: Lista solicitações com paginação e filtros
+      description: >
+        Retorna uma lista paginada de solicitações, podendo ser filtrada
+        por status, categoria e/ou prioridade.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtra pelo status da solicitação
+          schema:
+            $ref: '#/components/schemas/Status'
+        - name: categoria
+          in: query
+          required: false
+          description: Filtra pela categoria da solicitação
+          schema:
+            $ref: '#/components/schemas/Categoria'
+        - name: prioridade
+          in: query
+          required: false
+          description: Filtra pela prioridade da solicitação
+          schema:
+            $ref: '#/components/schemas/Prioridade'
+        - name: page
+          in: query
+          required: false
+          description: Número da página (padrão 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          description: Quantidade de itens por página (padrão 15)
+          schema:
+            type: integer
+            minimum: 1
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada retornada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoPaginada'
+
+    post:
+      tags: [Solicitações]
+      summary: Cria uma nova solicitação
+      description: >
+        Cria uma solicitação de atendimento. O protocolo é gerado
+        automaticamente pela aplicação, e o status inicial é sempre
+        RECEBIDA. Quando a prioridade for URGENTE, o campo
+        justificativa_prioridade se torna obrigatório.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovaSolicitacao'
+            examples:
+              exemplo_padrao:
+                summary: Solicitação com prioridade normal
+                value:
+                  nome_solicitante: "Maria da Silva"
+                  categoria: "CONSULTA"
+                  prioridade: "MEDIA"
+                  descricao: "Consulta de rotina com clínico geral"
+              exemplo_urgente:
+                summary: Solicitação com prioridade URGENTE
+                value:
+                  nome_solicitante: "João Pereira"
+                  categoria: "EXAME"
+                  prioridade: "URGENTE"
+                  descricao: "Exame de sangue com suspeita de infecção"
+                  justificativa_prioridade: "Paciente com febre alta há 3 dias"
+      responses:
+        '201':
+          description: Solicitação criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solicitacao'
+        '422':
+          description: Erro de validação (campo obrigatório ausente, valor inválido, ou justificativa ausente quando prioridade é URGENTE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroValidacao'
+              example:
+                message: "A justificativa de prioridade é obrigatória quando a prioridade é URGENTE."
+                errors:
+                  justificativa_prioridade:
+                    - "A justificativa de prioridade é obrigatória quando a prioridade é URGENTE."
+
+  /solicitacoes/resumo:
+    get:
+      tags: [Solicitações]
+      summary: Retorna um resumo agregado das solicitações
+      description: >
+        Retorna contagens agregadas de solicitações por status, por
+        prioridade, e o total geral. Usado para exibir o painel de
+        resumo na tela inicial do frontend.
+      responses:
+        '200':
+          description: Resumo retornado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resumo'
+              example:
+                por_status:
+                  RECEBIDA: 4
+                  EM_ANALISE: 3
+                  AGENDADA: 0
+                  CONCLUIDA: 1
+                  CANCELADA: 2
+                por_prioridade:
+                  BAIXA: 3
+                  MEDIA: 3
+                  ALTA: 1
+                  URGENTE: 3
+                total: 10
+
+  /solicitacoes/{id}:
+    get:
+      tags: [Solicitações]
+      summary: Consulta os detalhes de uma solicitação
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      responses:
+        '200':
+          description: Solicitação encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solicitacao'
+        '404':
+          description: Solicitação não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+              example:
+                message: "Rota não encontrada."
+
+  /solicitacoes/{id}/status:
+    patch:
+      tags: [Solicitações]
+      summary: Atualiza o status de uma solicitação
+      description: >
+        Atualiza o status de uma solicitação, respeitando o fluxo de
+        transições permitidas: RECEBIDA → EM_ANALISE/CANCELADA →
+        AGENDADA/CANCELADA → CONCLUIDA/CANCELADA. CONCLUIDA e CANCELADA
+        são estados finais e não permitem nova transição.
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: '#/components/schemas/Status'
+            example:
+              status: "EM_ANALISE"
+      responses:
+        '200':
+          description: Status atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solicitacao'
+        '404':
+          description: Solicitação não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '422':
+          description: >
+            Transição de status não permitida pelo fluxo de negócio,
+            ou valor de status inválido/inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroTransicao'
+              example:
+                message: "Transição de 'CONCLUIDA' para 'EM_ANALISE' não é permitida."
+                proximos_status_permitidos: []
+
+components:
+  parameters:
+    SolicitacaoId:
+      name: id
+      in: path
+      required: true
+      description: Identificador único da solicitação
+      schema:
+        type: integer
+        example: 1
+
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        services:
+          type: object
+          properties:
+            api:
+              type: string
+              example: "ok"
+            database:
+              type: string
+              example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+  
+    Categoria:
+      type: string
+      enum: [CONSULTA, EXAME, VACINACAO, OUTRO]
+
+    Prioridade:
+      type: string
+      enum: [BAIXA, MEDIA, ALTA, URGENTE]
+
+    Status:
+      type: string
+      enum: [RECEBIDA, EM_ANALISE, AGENDADA, CONCLUIDA, CANCELADA]
+
+    NovaSolicitacao:
+      type: object
+      required: [nome_solicitante, categoria, prioridade, descricao]
+      properties:
+        nome_solicitante:
+          type: string
+          example: "Maria da Silva"
+        categoria:
+          $ref: '#/components/schemas/Categoria'
+        prioridade:
+          $ref: '#/components/schemas/Prioridade'
+        descricao:
+          type: string
+          example: "Consulta de rotina com clínico geral"
+        justificativa_prioridade:
+          type: string
+          nullable: true
+          description: Obrigatório apenas quando prioridade é URGENTE
+          example: "Paciente com febre alta há 3 dias"
+
+    Solicitacao:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        protocolo:
+          type: string
+          example: "PROT-A1B2C3D4E5"
+        nome_solicitante:
+          type: string
+          example: "Maria da Silva"
+        categoria:
+          $ref: '#/components/schemas/Categoria'
+        prioridade:
+          $ref: '#/components/schemas/Prioridade'
+        status:
+          $ref: '#/components/schemas/Status'
+        descricao:
+          type: string
+        justificativa_prioridade:
+          type: string
+          nullable: true
+        data_criacao:
+          type: string
+          format: date-time
+        data_atualizacao:
+          type: string
+          format: date-time
+
+    SolicitacaoPaginada:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Solicitacao'
+        first_page_url:
+          type: string
+        last_page:
+          type: integer
+          example: 1
+        last_page_url:
+          type: string
+        per_page:
+          type: integer
+          example: 15
+        total:
+          type: integer
+          example: 10
+
+    Resumo:
+      type: object
+      properties:
+        por_status:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            RECEBIDA: 4
+            EM_ANALISE: 3
+            AGENDADA: 0
+            CONCLUIDA: 1
+            CANCELADA: 2
+        por_prioridade:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            BAIXA: 3
+            MEDIA: 3
+            ALTA: 1
+            URGENTE: 3
+        total:
+          type: integer
+          example: 10
+
+    Erro:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Rota não encontrada."
+
+    ErroValidacao:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    ErroTransicao:
+      type: object
+      properties:
+        message:
+          type: string
+        proximos_status_permitidos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Status'

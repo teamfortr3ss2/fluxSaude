@@ -1,0 +1,118 @@
+.lista-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--espaco-md);
+  margin-bottom: var(--espaco-lg);
+}
+
+.btn-nova {
+  display: inline-block;
+  background-color: var(--cor-primaria);
+  color: white !important;
+  padding: 0.5rem 1rem;
+  border-radius: var(--raio-borda);
+  font-weight: 600;
+}
+
+.btn-nova:hover {
+  background-color: var(--cor-primaria-hover);
+  text-decoration: none;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-md);
+  margin-bottom: var(--espaco-lg);
+  background: var(--cor-fundo-card);
+  padding: var(--espaco-md);
+  border-radius: var(--raio-borda);
+  border: 1px solid var(--cor-borda);
+}
+
+.filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--cor-texto-suave);
+}
+
+.filtros select {
+  padding: 0.35rem;
+  border-radius: var(--raio-borda);
+  border: 1px solid var(--cor-borda);
+}
+
+.tabela-wrapper {
+  overflow-x: auto;
+  background: var(--cor-fundo-card);
+  border-radius: var(--raio-borda);
+  border: 1px solid var(--cor-borda);
+}
+
+.tabela-solicitacoes {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.tabela-solicitacoes th,
+.tabela-solicitacoes td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.tabela-solicitacoes th {
+  background-color: var(--cor-primaria-suave);
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+
+.badge-status {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.badge-RECEBIDA { background: #fdeceb; color: #a30d15; border-color: #f3b9b6; }
+.badge-EM_ANALISE { background: #fff3cd; color: #7a5b00; border-color: #ffe08a; }
+.badge-AGENDADA { background: #e5f3ff; color: #0a5aa3; border-color: #b6dcfa; }
+.badge-CONCLUIDA { background: #e6f4ea; color: #1e6b2e; border-color: #b8e0c3; }
+.badge-CANCELADA { background: #f1f1f1; color: #5a5a5a; border-color: #d6d6d6; }
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-md);
+  margin-top: var(--espaco-lg);
+}
+
+.paginacao button {
+  background: white;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda);
+  padding: 0.4rem 0.8rem;
+}
+
+.mensagem-vazio,
+.mensagem-carregando {
+  padding: var(--espaco-lg);
+  text-align: center;
+  color: var(--cor-texto-suave);
+}
+
+.mensagem-erro {
+  color: var(--cor-perigo);
+  background: #fdeceb;
+  border: 1px solid var(--cor-borda);
+  padding: var(--espaco-md);
+  border-radius: var(--raio-borda);
+  margin-bottom: var(--espaco-md);
+}
