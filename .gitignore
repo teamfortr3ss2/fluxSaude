@@ -15,6 +15,7 @@ backend/storage/framework/testing/
 backend/storage/framework/views/
 backend/storage/logs/
 backend/bootstrap/cache/
+!backend/bootstrap/cache/.gitignore
 backend/public/storage
 backend/.phpunit.result.cache
 backend/.pest.cache

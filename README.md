@@ -128,8 +128,6 @@ flowchart LR
 
 **Evolução possível:** se o domínio crescesse (por exemplo, adicionando outros tipos de solicitação além de saúde, ou integrações com sistemas externos das unidades), o `SolicitacaoStatusService` poderia evoluir para um pacote de domínio próprio, e novos bounded contexts (ex: `Agendamento`, `Notificacao`) poderiam ser extraídos como módulos ou até serviços separados, comunicando-se via eventos em vez de chamadas diretas — mantendo o Controller como a única porta de entrada HTTP de cada módulo.
 
-## Arquitetura e decisões técnicas
-
 - **Frontend e backend desacoplados**, comunicando-se exclusivamente via API REST (JSON), sem dependência de dados estáticos como fonte de dados no frontend.
 - **Containers isolados** para cada camada (frontend, backend, banco), orquestrados via Docker Compose, com rede interna compartilhada. O backend acessa o banco pelo nome do serviço (`postgres`), nunca por IP fixo.
 - **Configuração via variáveis de ambiente** em todas as camadas, com arquivos `.env.example` versionados (sem segredos reais) e `.env` reais fora do controle de versão.
@@ -215,6 +213,8 @@ React 19 + TypeScript + Vite, com React Router para navegação.
 - **Cliente HTTP centralizado** (`services/api.ts`) com tratamento de erro tipado (`ApiRequestError`), evitando duplicação de lógica de fetch em cada tela.
 - **Testes automatizados** com Vitest + React Testing Library cobrindo a regra de exibição condicional do campo de justificativa.
 - **Health check** (`GET /api/health`): verifica o funcionamento da API e a conectividade com o PostgreSQL, retornando `200` quando saudável ou `503` quando o banco está indisponível.
+ - **Integração contínua** O projeto conta com um workflow de CI (GitHub Actions, ver `.github/workflows/ci.yml`) que roda automaticamente a cada push/PR: testes do backend (PHPUnit) e testes + build do frontend (Vitest, Vite).
+
 
 ### Estrutura de pastas relevante
 
@@ -275,6 +275,10 @@ docker compose exec backend php artisan test
 ```
 
 Cenários cobertos: transição válida simples, fluxo completo de transições válidas, transição inválida pulando etapa, status finais (`CONCLUIDA`/`CANCELADA`) não permitindo nova transição, e consulta de próximos status permitidos.
+
+## Integração contínua
+
+O projeto conta com um workflow de CI (GitHub Actions, ver `.github/workflows/ci.yml`) que roda automaticamente a cada push/PR: testes do backend (PHPUnit) e testes + build do frontend (Vitest, Vite).
 
 ### Frontend (Vitest + React Testing Library)
 
