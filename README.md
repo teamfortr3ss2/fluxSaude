@@ -174,25 +174,26 @@ PHP 8.4 + Laravel 13 + PostgreSQL 16, containerizado com Docker.
 
 ### Estrutura de pastas relevante
 
+```
 backend/
 ├── app/
-│ ├── Http/
-│ │ ├── Controllers/Api/
-│ │ │ ├── SolicitacaoController.php
-│ │ │ └── HealthController.php
-│ │ └── Requests/
-│ │ ├── StoreSolicitacaoRequest.php
-│ │ └── UpdateStatusSolicitacaoRequest.php
-│ ├── Models/Solicitacao.php
-│ └── Services/SolicitacaoStatusService.php
+│   ├── Http/
+│   │   ├── Controllers/Api/
+│   │   │   ├── SolicitacaoController.php
+│   │   │   └── HealthController.php
+│   │   └── Requests/
+│   │       ├── StoreSolicitacaoRequest.php
+│   │       └── UpdateStatusSolicitacaoRequest.php
+│   ├── Models/Solicitacao.php
+│   └── Services/SolicitacaoStatusService.php
 ├── database/
-│ ├── factories/SolicitacaoFactory.php
-│ ├── migrations/..._create_solicitacoes_table.php
-│ └── seeders/SolicitacaoSeeder.php
+│   ├── factories/SolicitacaoFactory.php
+│   ├── migrations/..._create_solicitacoes_table.php
+│   └── seeders/SolicitacaoSeeder.php
 ├── routes/api.php
 ├── tests/Unit/SolicitacaoStatusServiceTest.php
 └── entrypoint.sh
-
+```
 
 ---
 
@@ -220,16 +221,17 @@ React 19 + TypeScript + Vite, com React Router para navegação.
 
 ### Estrutura de pastas relevante
 
+```
 frontend/src/
-├── components/ResumoSolicitacoes.tsx # cards de resumo por status
+├── components/ResumoSolicitacoes.tsx
 ├── pages/
-│ ├── ListaSolicitacoes.tsx
-│ ├── NovaSolicitacao.tsx
-│ ├── NovaSolicitacao.test.tsx
-│ └── DetalheSolicitacao.tsx
-├── services/api.ts # cliente HTTP centralizado
-└── types/solicitacao.ts # contratos TypeScript com a API
-
+│   ├── ListaSolicitacoes.tsx
+│   ├── NovaSolicitacao.tsx
+│   ├── NovaSolicitacao.test.tsx
+│   └── DetalheSolicitacao.tsx
+├── services/api.ts
+└── types/solicitacao.ts
+```
 
 ---
 
