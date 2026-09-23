@@ -13,6 +13,7 @@ Permite criar, consultar, filtrar e atualizar solicitações de atendimento, com
 - [Frontend](#frontend)
 - [Banco de dados](#banco-de-dados)
 - [Testes](#testes)
+- [Integração contínua](#integração-contínua)
 - [Especificação da API](#especificação-da-api)
 - [Funcionalidades implementadas](#funcionalidades-implementadas)
 - [Limitações conhecidas](#limitações-conhecidas)
@@ -31,6 +32,7 @@ Permite criar, consultar, filtrar e atualizar solicitações de atendimento, com
 | Infraestrutura | Docker + Docker Compose | — |
 | Testes backend | PHPUnit | — |
 | Testes frontend | Vitest + React Testing Library | — |
+| CI | GitHub Actions | — |
 
 ## Como executar
 
@@ -164,8 +166,9 @@ PHP 8.4 + Laravel 13 + PostgreSQL 16, containerizado com Docker.
 
 ### Funcionalidades adicionais (diferenciais)
 
+- **Health check** (`GET /api/health`): verifica o funcionamento da API e a conectividade com o PostgreSQL, retornando `200` quando saudável ou `503` quando o banco está indisponível.
 - **Endpoint de resumo** (`GET /api/v1/solicitacoes/resumo`): agrega contagens por status e prioridade via `GROUP BY` no banco, usado pelo dashboard do frontend.
-- **Seeder + Factory** (`SolicitacaoSeeder`, `SolicitacaoFactory`) para dados fictícios, executado automaticamente na inicialização apenas quando o banco está vazio.
+- **Seeder + Factory** (`SolicitacaoSeeder`, `SolicitacaoFactory`) para dados fictícios, executado automaticamente na inicialização apenas quando o banco está vazio (idempotente).
 - **Tratamento de exceções centralizado**, com handlers específicos por tipo de erro (`ModelNotFoundException`, `NotFoundHttpException`, `ValidationException`, genérico), sempre respondendo em JSON.
 - Índice composto em `status`, `categoria`, `prioridade` para otimizar os filtros da listagem.
 
@@ -174,7 +177,9 @@ PHP 8.4 + Laravel 13 + PostgreSQL 16, containerizado com Docker.
 backend/
 ├── app/
 │ ├── Http/
-│ │ ├── Controllers/Api/SolicitacaoController.php
+│ │ ├── Controllers/Api/
+│ │ │ ├── SolicitacaoController.php
+│ │ │ └── HealthController.php
 │ │ └── Requests/
 │ │ ├── StoreSolicitacaoRequest.php
 │ │ └── UpdateStatusSolicitacaoRequest.php
@@ -212,9 +217,6 @@ React 19 + TypeScript + Vite, com React Router para navegação.
 - **Identidade visual própria** (paleta vermelho/branco, inspirada em aplicações de saúde pública como o Hemovida), com CSS organizado por componente/tela em vez de estilos inline.
 - **Cliente HTTP centralizado** (`services/api.ts`) com tratamento de erro tipado (`ApiRequestError`), evitando duplicação de lógica de fetch em cada tela.
 - **Testes automatizados** com Vitest + React Testing Library cobrindo a regra de exibição condicional do campo de justificativa.
-- **Health check** (`GET /api/health`): verifica o funcionamento da API e a conectividade com o PostgreSQL, retornando `200` quando saudável ou `503` quando o banco está indisponível.
- - **Integração contínua** O projeto conta com um workflow de CI (GitHub Actions, ver `.github/workflows/ci.yml`) que roda automaticamente a cada push/PR: testes do backend (PHPUnit) e testes + build do frontend (Vitest, Vite).
-
 
 ### Estrutura de pastas relevante
 
@@ -276,10 +278,6 @@ docker compose exec backend php artisan test
 
 Cenários cobertos: transição válida simples, fluxo completo de transições válidas, transição inválida pulando etapa, status finais (`CONCLUIDA`/`CANCELADA`) não permitindo nova transição, e consulta de próximos status permitidos.
 
-## Integração contínua
-
-O projeto conta com um workflow de CI (GitHub Actions, ver `.github/workflows/ci.yml`) que roda automaticamente a cada push/PR: testes do backend (PHPUnit) e testes + build do frontend (Vitest, Vite).
-
 ### Frontend (Vitest + React Testing Library)
 
 Testa a regra de exibição condicional do campo de justificativa de prioridade no formulário de criação:
@@ -292,9 +290,18 @@ Cenários cobertos: campo ausente por padrão, campo exibido e obrigatório ao s
 
 ---
 
+## Integração contínua
+
+O projeto conta com um workflow de CI (GitHub Actions, ver [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) que roda automaticamente a cada push/PR:
+
+- **Backend**: instala dependências via Composer e roda os testes PHPUnit.
+- **Frontend**: instala dependências via npm, roda os testes Vitest e o build de produção (`vite build`), garantindo que o projeto compila sem erros de tipo.
+
+---
+
 ## Especificação da API
 
-A especificação OpenAPI dos 4 endpoints está em [`openapi.yaml`](./openapi.yaml), na raiz do projeto.
+A especificação OpenAPI dos endpoints está em [`openapi.yaml`](./openapi.yaml), na raiz do projeto.
 
 ---
 
@@ -309,12 +316,14 @@ A especificação OpenAPI dos 4 endpoints está em [`openapi.yaml`](./openapi.ya
 - [x] Testes automatizados (backend e frontend)
 - [x] Dados fictícios via Seeder, populados automaticamente
 - [x] Tratamento de exceções sem exposição de detalhes internos
+- [x] Health check da API e do banco de dados
+- [x] Pipeline de CI (GitHub Actions)
+- [x] Diagrama arquitetural e registro de decisões técnicas
 
 ### Não implementado
 
 - Autenticação/autorização (diferencial opcional do edital, não implementado por escolha de foco nos requisitos obrigatórios e demais diferenciais dentro do prazo).
 - Especificação OpenAPI com Swagger UI interativo (a especificação existe como arquivo estático, sem interface visual).
-- Pipeline de CI (lint/testes/build automatizados).
 - Logs estruturados e correlação de requisições.
 
 ## Limitações conhecidas
