@@ -26,3 +26,29 @@
     padding: var(--espaco-md);
   }
 }
+
+.app-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.app-header-auth {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-md);
+  color: white;
+  font-size: 0.9rem;
+}
+
+.btn-header {
+  background: white;
+  color: var(--cor-primaria) !important;
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--raio-borda);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}

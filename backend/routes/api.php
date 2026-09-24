@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\SolicitacaoController;
 use Illuminate\Support\Facades\Route;
@@ -7,9 +8,19 @@ use Illuminate\Support\Facades\Route;
 Route::get('health', [HealthController::class, 'check']);
 
 Route::prefix('v1')->group(function () {
-    Route::post('solicitacoes', [SolicitacaoController::class, 'store']);
+    Route::post('login', [AuthController::class, 'login']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::get('me', [AuthController::class, 'me']);
+    });
+
     Route::get('solicitacoes', [SolicitacaoController::class, 'index']);
     Route::get('solicitacoes/resumo', [SolicitacaoController::class, 'resumo']);
     Route::get('solicitacoes/{solicitacao}', [SolicitacaoController::class, 'show']);
-    Route::patch('solicitacoes/{solicitacao}/status', [SolicitacaoController::class, 'updateStatus']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('solicitacoes', [SolicitacaoController::class, 'store']);
+        Route::patch('solicitacoes/{solicitacao}/status', [SolicitacaoController::class, 'updateStatus']);
+    });
 });

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { solicitacoesApi, ApiRequestError } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import type { Categoria, Prioridade } from '../types/solicitacao';
 import './Formulario.css';
 
@@ -9,6 +10,7 @@ const PRIORIDADE_OPTIONS: Prioridade[] = ['BAIXA', 'MEDIA', 'ALTA', 'URGENTE'];
 
 export function NovaSolicitacao() {
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   const [nomeSolicitante, setNomeSolicitante] = useState('');
   const [categoria, setCategoria] = useState<Categoria>('CONSULTA');
@@ -22,18 +24,27 @@ export function NovaSolicitacao() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+
+    if (!token) {
+      setErroGeral('Você precisa estar autenticado para criar uma solicitação.');
+      return;
+    }
+
     setEnviando(true);
     setErros({});
     setErroGeral(null);
 
     try {
-      const nova = await solicitacoesApi.criar({
-        nome_solicitante: nomeSolicitante,
-        categoria,
-        prioridade,
-        descricao,
-        justificativa_prioridade: justificativaPrioridade || undefined,
-      });
+      const nova = await solicitacoesApi.criar(
+        {
+          nome_solicitante: nomeSolicitante,
+          categoria,
+          prioridade,
+          descricao,
+          justificativa_prioridade: justificativaPrioridade || undefined,
+        },
+        token
+      );
       navigate(`/solicitacoes/${nova.id}`);
     } catch (err) {
       if (err instanceof ApiRequestError) {

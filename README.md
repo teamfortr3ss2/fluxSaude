@@ -2,7 +2,7 @@
 
 Aplicação full stack para registro e acompanhamento de solicitações de atendimento em unidades públicas de saúde. Desenvolvida como desafio técnico para seleção do V-Lab/CIn-UFPE.
 
-Permite criar, consultar, filtrar e atualizar solicitações de atendimento, com frontend e backend desacoplados por uma API REST.
+Permite criar, consultar, filtrar e atualizar solicitações de atendimento, com frontend e backend desacoplados por uma API REST, e autenticação com dois perfis de usuário.
 
 ## Índice
 
@@ -28,6 +28,7 @@ Permite criar, consultar, filtrar e atualizar solicitações de atendimento, com
 | Frontend | React + TypeScript (Vite) | React 19, TypeScript 5, Vite 8 |
 | Roteamento | React Router | 6 |
 | Backend | PHP + Laravel | PHP 8.4, Laravel 13 |
+| Autenticação | Laravel Sanctum | — |
 | Banco de dados | PostgreSQL | 16 |
 | Infraestrutura | Docker + Docker Compose | — |
 | Testes backend | PHPUnit | — |
@@ -71,16 +72,16 @@ Permite criar, consultar, filtrar e atualizar solicitações de atendimento, com
 
 Isso sobe três serviços:
 - **PostgreSQL** na porta `5432`
-- **Backend (Laravel)** na porta `8000` — roda migrations automaticamente e popula dados fictícios na primeira inicialização (banco vazio)
+- **Backend (Laravel)** na porta `8000` — roda migrations automaticamente e popula dados fictícios (solicitações e usuários) na primeira inicialização (banco vazio)
 - **Frontend (React + Vite)** na porta `5173`
 
-6. Acesse a aplicação em [http://localhost:5173](http://localhost:5173).
+6. Acesse a aplicação em [http://localhost:5173](http://localhost:5173). A aplicação exige login — use uma das credenciais de teste listadas na seção [Autenticação e autorização](#autenticação-e-autorização).
 
 A API fica disponível em `http://localhost:8000/api/v1`.
 
 ### Repopular dados fictícios manualmente (opcional)
 
-O seeder só popula automaticamente quando a tabela está vazia. Para forçar a execução manual (ela não duplica dados se a tabela já tiver registros):
+Os seeders só populam automaticamente quando as tabelas estão vazias. Para forçar a execução manual (não duplica dados se já existirem):
 ```bash
 docker compose exec backend php artisan db:seed
 ```
@@ -125,7 +126,7 @@ flowchart LR
 
 **Limites entre as camadas:**
 - O **frontend** nunca acessa o banco diretamente — toda comunicação passa pela API REST em JSON.
-- O **Controller** não concentra regras de negócio: valida via Form Request e delega a lógica de transição de status ao `SolicitacaoStatusService`.
+- O **Controller** não concentra regras de negócio: valida via Form Request, delega a lógica de transição de status ao `SolicitacaoStatusService`, e a autorização à `SolicitacaoPolicy`.
 - O **Model** (Eloquent) é a única camada que fala com o PostgreSQL.
 
 **Evolução possível:** se o domínio crescesse (por exemplo, adicionando outros tipos de solicitação além de saúde, ou integrações com sistemas externos das unidades), o `SolicitacaoStatusService` poderia evoluir para um pacote de domínio próprio, e novos bounded contexts (ex: `Agendamento`, `Notificacao`) poderiam ser extraídos como módulos ou até serviços separados, comunicando-se via eventos em vez de chamadas diretas — mantendo o Controller como a única porta de entrada HTTP de cada módulo.
@@ -134,8 +135,9 @@ flowchart LR
 - **Containers isolados** para cada camada (frontend, backend, banco), orquestrados via Docker Compose, com rede interna compartilhada. O backend acessa o banco pelo nome do serviço (`postgres`), nunca por IP fixo.
 - **Configuração via variáveis de ambiente** em todas as camadas, com arquivos `.env.example` versionados (sem segredos reais) e `.env` reais fora do controle de versão.
 - **Regras de negócio centralizadas fora do Controller**: a lógica de transição de status vive em `SolicitacaoStatusService`, não no Controller, para manter o Controller magro e a regra testável isoladamente.
+- **Autorização centralizada via Policy**: a regra "só gestor pode atualizar status" vive em `SolicitacaoPolicy`, não espalhada em condicionais no Controller.
 - **Validação via Form Requests** do Laravel (`StoreSolicitacaoRequest`, `UpdateStatusSolicitacaoRequest`), incluindo uma regra condicional customizada (justificativa obrigatória apenas quando prioridade é `URGENTE`).
-- **Tratamento de exceções centralizado** em `bootstrap/app.php`: respostas de erro da API são sempre JSON, com mensagens claras e sem exposição de detalhes internos (stack traces), independente de `APP_DEBUG`.
+- **Tratamento de exceções centralizado** em `bootstrap/app.php`: respostas de erro da API são sempre JSON, com mensagens claras e sem exposição de detalhes internos (stack traces), independente de `APP_DEBUG` — incluindo `401` (não autenticado) e `403` (não autorizado).
 - **Protocolo único gerado automaticamente** no Model via evento `creating`, sem depender do frontend ou de input do usuário.
 
 ---
@@ -143,7 +145,7 @@ flowchart LR
 ## Backend
 
 ### Stack
-PHP 8.4 + Laravel 13 + PostgreSQL 16, containerizado com Docker.
+PHP 8.4 + Laravel 13 + PostgreSQL 16 + Laravel Sanctum, containerizado com Docker.
 
 ### Funcionalidades obrigatórias implementadas
 
@@ -159,17 +161,46 @@ PHP 8.4 + Laravel 13 + PostgreSQL 16, containerizado com Docker.
   - Justificativa de prioridade obrigatória quando `prioridade = URGENTE` (validada via Form Request).
   - `data_criacao` gerada automaticamente; `data_atualizacao` atualizada a cada modificação.
   - Fluxo de transição de status respeitado e centralizado em `SolicitacaoStatusService`: `RECEBIDA → EM_ANALISE/CANCELADA → AGENDADA/CANCELADA → CONCLUIDA/CANCELADA`, com `CONCLUIDA` e `CANCELADA` como estados finais.
-  - Requisições inválidas retornam mensagens de erro claras com códigos HTTP adequados (422 para validação, 404 para não encontrado, 500 para erro genérico — todos em JSON, sem stack trace).
+  - Requisições inválidas retornam mensagens de erro claras com códigos HTTP adequados (401 para não autenticado, 403 para não autorizado, 422 para validação, 404 para não encontrado, 500 para erro genérico — todos em JSON, sem stack trace).
 - Validação rigorosa via Form Requests (`StoreSolicitacaoRequest`, `UpdateStatusSolicitacaoRequest`), evitando lógica de validação no Controller.
 - Persistência via Eloquent, com migrations versionadas do Laravel (sem alterações manuais no banco).
 - Migrations executadas automaticamente na inicialização do ambiente via `entrypoint.sh`.
 
+### Autenticação e autorização
+
+A API implementa autenticação via **Laravel Sanctum** (tokens de API) com dois perfis de usuário:
+
+| Perfil | Permissões |
+|---|---|
+| `atendente` | Criar e consultar solicitações |
+| `gestor` | Criar, consultar e atualizar o status das solicitações |
+
+**Endpoints de autenticação:**
+- `POST /api/v1/login` — autentica com email/senha, retorna um token
+- `POST /api/v1/logout` — revoga o token atual (requer autenticação)
+- `GET /api/v1/me` — retorna os dados do usuário autenticado (requer autenticação)
+
+**Regras de acesso:**
+- `GET /api/v1/solicitacoes*` — público, não exige autenticação
+- `POST /api/v1/solicitacoes` — exige autenticação (qualquer perfil)
+- `PATCH /api/v1/solicitacoes/{id}/status` — exige autenticação **e** perfil `gestor` (validado via `SolicitacaoPolicy`)
+
+**Usuários de teste** (criados automaticamente pelo `UserSeeder`):
+
+| Perfil | Email | Senha |
+|---|---|---|
+| Gestor | `gestor@fluxsaude.local` | `senha123` |
+| Atendente | `atendente@fluxsaude.local` | `senha123` |
+
+Tentativas de acesso sem token retornam `401`; tentativas de atendente para atualizar status retornam `403` — ambos em JSON limpo, sem exposição de detalhes internos.
+
 ### Funcionalidades adicionais (diferenciais)
 
+- **Autenticação e autorização** com Sanctum e Policy, conforme detalhado acima.
 - **Health check** (`GET /api/health`): verifica o funcionamento da API e a conectividade com o PostgreSQL, retornando `200` quando saudável ou `503` quando o banco está indisponível.
 - **Endpoint de resumo** (`GET /api/v1/solicitacoes/resumo`): agrega contagens por status e prioridade via `GROUP BY` no banco, usado pelo dashboard do frontend.
-- **Seeder + Factory** (`SolicitacaoSeeder`, `SolicitacaoFactory`) para dados fictícios, executado automaticamente na inicialização apenas quando o banco está vazio (idempotente).
-- **Tratamento de exceções centralizado**, com handlers específicos por tipo de erro (`ModelNotFoundException`, `NotFoundHttpException`, `ValidationException`, genérico), sempre respondendo em JSON.
+- **Seeders + Factories** (`UserSeeder`, `SolicitacaoSeeder`, `SolicitacaoFactory`) para dados fictícios, executados automaticamente na inicialização apenas quando as tabelas estão vazias (idempotente).
+- **Tratamento de exceções centralizado**, com handlers específicos por tipo de erro (`AuthenticationException`, `AccessDeniedHttpException`, `ModelNotFoundException`, `NotFoundHttpException`, `ValidationException`, genérico), sempre respondendo em JSON.
 - Índice composto em `status`, `categoria`, `prioridade` para otimizar os filtros da listagem.
 
 ### Estrutura de pastas relevante
@@ -180,16 +211,23 @@ backend/
 │   ├── Http/
 │   │   ├── Controllers/Api/
 │   │   │   ├── SolicitacaoController.php
+│   │   │   ├── AuthController.php
 │   │   │   └── HealthController.php
 │   │   └── Requests/
 │   │       ├── StoreSolicitacaoRequest.php
 │   │       └── UpdateStatusSolicitacaoRequest.php
-│   ├── Models/Solicitacao.php
+│   ├── Models/
+│   │   ├── Solicitacao.php
+│   │   └── User.php
+│   ├── Policies/SolicitacaoPolicy.php
 │   └── Services/SolicitacaoStatusService.php
 ├── database/
 │   ├── factories/SolicitacaoFactory.php
 │   ├── migrations/..._create_solicitacoes_table.php
-│   └── seeders/SolicitacaoSeeder.php
+│   ├── migrations/..._add_role_to_users_table.php
+│   └── seeders/
+│       ├── UserSeeder.php
+│       └── SolicitacaoSeeder.php
 ├── routes/api.php
 ├── tests/Unit/SolicitacaoStatusServiceTest.php
 └── entrypoint.sh
@@ -209,28 +247,38 @@ React 19 + TypeScript + Vite, com React Router para navegação.
 - **Filtros** por status, categoria e prioridade.
 - **Formulário de criação** com validação de campos, incluindo exibição condicional e obrigatoriedade do campo de justificativa quando a prioridade selecionada é `URGENTE`.
 - **Visualização de detalhes** de uma solicitação individual.
-- **Ação de atualização de status**, exibindo apenas as transições permitidas para o status atual (consistente com a regra de negócio do backend).
+- **Ação de atualização de status**, exibindo apenas as transições permitidas para o status atual (consistente com a regra de negócio do backend) e restrita ao perfil `gestor`.
 - **Estados visuais** de carregamento, sucesso, vazio e erro em todas as telas que consomem a API.
 - Interface implementada em React com TypeScript, tipagem completa do contrato com a API (sem uso de `any`), layout responsivo e navegação por rotas nomeadas.
 
 ### Funcionalidades adicionais (diferenciais)
 
+- **Autenticação completa no cliente**: contexto de autenticação (`AuthContext`) com persistência de sessão via token (localStorage) e revalidação automática via `/me`, tela de login, proteção de rotas (`RotaProtegida`) exigindo autenticação em toda a aplicação, cabeçalho com identificação do usuário logado e botão de sair, e ocultação condicional de ações (mudança de status) conforme o perfil do usuário.
 - **Identidade visual própria** (paleta vermelho/branco, inspirada em aplicações de saúde pública como o Hemovida), com CSS organizado por componente/tela em vez de estilos inline.
-- **Cliente HTTP centralizado** (`services/api.ts`) com tratamento de erro tipado (`ApiRequestError`), evitando duplicação de lógica de fetch em cada tela.
+- **Cliente HTTP centralizado** (`services/api.ts`, `services/auth.ts`) com tratamento de erro tipado (`ApiRequestError`), evitando duplicação de lógica de fetch em cada tela.
 - **Testes automatizados** com Vitest + React Testing Library cobrindo a regra de exibição condicional do campo de justificativa.
 
 ### Estrutura de pastas relevante
 
 ```
 frontend/src/
-├── components/ResumoSolicitacoes.tsx
+├── components/
+│   ├── Header.tsx
+│   ├── RotaProtegida.tsx
+│   └── ResumoSolicitacoes.tsx
+├── context/AuthContext.tsx
 ├── pages/
+│   ├── Login.tsx
 │   ├── ListaSolicitacoes.tsx
 │   ├── NovaSolicitacao.tsx
 │   ├── NovaSolicitacao.test.tsx
 │   └── DetalheSolicitacao.tsx
-├── services/api.ts
-└── types/solicitacao.ts
+├── services/
+│   ├── api.ts
+│   └── auth.ts
+└── types/
+    ├── solicitacao.ts
+    └── auth.ts
 ```
 
 ---
@@ -242,7 +290,7 @@ PostgreSQL 16, versionado exclusivamente por migrations do Laravel.
 
 ### Modelagem
 
-Tabela única `solicitacoes`, modelada de forma relacional e coerente com o domínio:
+Tabela `solicitacoes`, modelada de forma relacional e coerente com o domínio:
 
 | Coluna | Tipo | Restrição |
 |---|---|---|
@@ -259,9 +307,19 @@ Tabela única `solicitacoes`, modelada de forma relacional e coerente com o dom�
 
 **Índice composto** em (`status`, `categoria`, `prioridade`) para otimizar os filtros expostos pela API.
 
+Tabela `users` (estendida para autenticação):
+
+| Coluna | Tipo | Restrição |
+|---|---|---|
+| `id` | bigint | chave primária |
+| `name` | string | obrigatório |
+| `email` | string | único, obrigatório |
+| `role` | enum | `atendente`, `gestor` (default `atendente`) |
+| `password` | string | hash, obrigatório |
+
 ### Decisões
 
-- Campos `categoria`, `prioridade` e `status` modelados como `enum` nativo do PostgreSQL (via Laravel), garantindo integridade de domínio diretamente no banco, além da validação na camada de aplicação.
+- Campos `categoria`, `prioridade`, `status` (solicitações) e `role` (usuários) modelados como `enum` nativo do PostgreSQL (via Laravel), garantindo integridade de domínio diretamente no banco, além da validação na camada de aplicação.
 - `protocolo` com constraint `unique`, garantindo unicidade mesmo sob concorrência (não depende apenas de checagem na aplicação).
 - Persistência isolada em container próprio, com volume nomeado (`postgres_data`) para persistir dados entre reinicializações do container.
 - Schema criado e alterado exclusivamente via migrations versionadas — nenhuma alteração manual necessária para rodar a aplicação.
@@ -313,10 +371,11 @@ A especificação OpenAPI dos endpoints está em [`openapi.yaml`](./openapi.yaml
 - [x] Filtros e paginação na listagem
 - [x] Fluxo de transição de status com regras de negócio centralizadas
 - [x] Validação condicional de justificativa para prioridade URGENTE
-- [x] Frontend completo com todas as telas exigidas
+- [x] Autenticação via Sanctum com dois perfis (atendente, gestor) e autorização via Policy
+- [x] Frontend completo com todas as telas exigidas, incluindo login e proteção de rotas
 - [x] Tela de resumo/dashboard
 - [x] Testes automatizados (backend e frontend)
-- [x] Dados fictícios via Seeder, populados automaticamente
+- [x] Dados fictícios via Seeders, populados automaticamente
 - [x] Tratamento de exceções sem exposição de detalhes internos
 - [x] Health check da API e do banco de dados
 - [x] Pipeline de CI (GitHub Actions)
@@ -324,7 +383,6 @@ A especificação OpenAPI dos endpoints está em [`openapi.yaml`](./openapi.yaml
 
 ### Não implementado
 
-- Autenticação/autorização (diferencial opcional do edital, não implementado por escolha de foco nos requisitos obrigatórios e demais diferenciais dentro do prazo).
 - Especificação OpenAPI com Swagger UI interativo (a especificação existe como arquivo estático, sem interface visual).
 - Logs estruturados e correlação de requisições.
 
@@ -333,11 +391,12 @@ A especificação OpenAPI dos endpoints está em [`openapi.yaml`](./openapi.yaml
 - O endpoint de resumo (`/solicitacoes/resumo`) não é paginado nem filtrado — sempre retorna a agregação sobre a tabela inteira.
 - Não há exclusão (`DELETE`) de solicitações — fora do escopo definido pelo edital.
 - A API não implementa rate limiting customizado além do padrão do Laravel.
+- Não há tela de cadastro de novos usuários — os usuários existem apenas via Seeder, por simplicidade dentro do escopo do desafio.
 
 ---
 
 ## Uso de inteligência artificial
 
-Este projeto foi desenvolvido com assistência conversacional do Claude (Anthropic) ao longo de todas as etapas: definição da estrutura do projeto, revisão de código do backend (migrations, Models, Services, Controllers, Form Requests, tratamento de exceções) e do frontend (componentes React, tipos TypeScript, estilização), configuração de Docker/Docker Compose, revisão de testes automatizados (PHPUnit e Vitest), elaboração desta documentação e do OpenAPI.
+Este projeto foi desenvolvido com assistência conversacional do Claude (Anthropic) ao longo de todas as etapas: definição da estrutura do projeto, revisão de código do backend (migrations, Models, Services, Controllers, Form Requests, Policies, autenticação, tratamento de exceções) e do frontend (componentes React, contexto de autenticação, tipos TypeScript, estilização), configuração de Docker/Docker Compose, revisão de testes automatizados (PHPUnit e Vitest), elaboração desta documentação e do OpenAPI.yaml.
 
 Nenhuma ferramenta de autocomplete de código (como GitHub Copilot) foi utilizada — toda a assistência foi por meio de conversação, com o código sendo revisado e testado manualmente antes de cada commit. Todo o código entregue foi lido, compreendido e testado pelo candidato antes de sua inclusão no projeto.

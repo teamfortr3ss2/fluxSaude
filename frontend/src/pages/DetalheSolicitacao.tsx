@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { solicitacoesApi, ApiRequestError } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import type { Solicitacao, Status } from '../types/solicitacao';
 import './Formulario.css';
 
@@ -14,6 +15,7 @@ const TRANSICOES: Record<Status, Status[]> = {
 
 export function DetalheSolicitacao() {
   const { id } = useParams<{ id: string }>();
+  const { token, user } = useAuth();
   const [solicitacao, setSolicitacao] = useState<Solicitacao | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -38,11 +40,11 @@ export function DetalheSolicitacao() {
   }, [carregar]);
 
   async function handleMudarStatus(novoStatus: Status) {
-    if (!solicitacao) return;
+    if (!solicitacao || !token) return;
     setAtualizando(true);
     setErro(null);
     try {
-      const atualizada = await solicitacoesApi.atualizarStatus(solicitacao.id, novoStatus);
+      const atualizada = await solicitacoesApi.atualizarStatus(solicitacao.id, novoStatus, token);
       setSolicitacao(atualizada);
     } catch (err) {
       if (err instanceof ApiRequestError) {
@@ -67,6 +69,7 @@ export function DetalheSolicitacao() {
   }
 
   const proximosStatus = TRANSICOES[solicitacao.status];
+  const podeAlterarStatus = user?.role === 'gestor';
 
   return (
     <div>
@@ -107,7 +110,9 @@ export function DetalheSolicitacao() {
 
       <div>
         <h2>Alterar status</h2>
-        {proximosStatus.length === 0 ? (
+        {!podeAlterarStatus ? (
+          <p>Apenas usuários com perfil gestor podem alterar o status.</p>
+        ) : proximosStatus.length === 0 ? (
           <p>Este status é final, não pode mais ser alterado.</p>
         ) : (
           <div className="acoes-status">

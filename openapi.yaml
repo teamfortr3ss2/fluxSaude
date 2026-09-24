@@ -4,8 +4,9 @@ info:
   description: >
     API REST para registro e acompanhamento de solicitações de atendimento
     em unidades públicas de saúde. Desenvolvida como desafio técnico para
-    seleção do V-Lab/CIn-UFPE.
-  version: "1.0.0"
+    seleção do V-Lab/CIn-UFPE. Autenticação via Laravel Sanctum (Bearer
+    token), com dois perfis de usuário: atendente e gestor.
+  version: "1.1.0"
   contact:
     name: Sérgio Tavares Coutinho Moreira Lima
 
@@ -14,6 +15,8 @@ servers:
     description: Ambiente local (Docker Compose)
 
 tags:
+  - name: Autenticação
+    description: Login, logout e dados do usuário autenticado
   - name: Solicitações
     description: Operações sobre solicitações de atendimento
   - name: Sistema
@@ -49,13 +52,108 @@ paths:
                   api: "ok"
                   database: "unavailable"
                 timestamp: "2026-09-22T18:05:37+00:00"
+
+  /login:
+    post:
+      tags: [Autenticação]
+      summary: Autentica um usuário e retorna um token de acesso
+      description: >
+        Autentica com email e senha. Em caso de sucesso, retorna os dados
+        do usuário e um token Bearer que deve ser enviado no header
+        Authorization das requisições subsequentes que exigem autenticação.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "gestor@fluxsaude.local"
+                password:
+                  type: string
+                  format: password
+                  example: "senha123"
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                user:
+                  id: 1
+                  name: "Ana Gestora"
+                  email: "gestor@fluxsaude.local"
+                  role: "gestor"
+                token: "1|x2tV27S0a1vywIMSd6RG6t6DeAj9CxfSF0xi7k6K62c6375f"
+        '422':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroValidacao'
+              example:
+                message: "As credenciais fornecidas estão incorretas."
+                errors:
+                  email:
+                    - "As credenciais fornecidas estão incorretas."
+
+  /logout:
+    post:
+      tags: [Autenticação]
+      summary: Revoga o token de acesso atual
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout realizado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logout realizado com sucesso."
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+
+  /me:
+    get:
+      tags: [Autenticação]
+      summary: Retorna os dados do usuário autenticado
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dados do usuário autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 1
+                name: "Ana Gestora"
+                email: "gestor@fluxsaude.local"
+                role: "gestor"
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+
   /solicitacoes:
     get:
       tags: [Solicitações]
       summary: Lista solicitações com paginação e filtros
       description: >
         Retorna uma lista paginada de solicitações, podendo ser filtrada
-        por status, categoria e/ou prioridade.
+        por status, categoria e/ou prioridade. Endpoint público, não exige
+        autenticação.
+      security: []
       parameters:
         - name: status
           in: query
@@ -106,7 +204,10 @@ paths:
         Cria uma solicitação de atendimento. O protocolo é gerado
         automaticamente pela aplicação, e o status inicial é sempre
         RECEBIDA. Quando a prioridade for URGENTE, o campo
-        justificativa_prioridade se torna obrigatório.
+        justificativa_prioridade se torna obrigatório. Exige autenticação
+        (qualquer perfil: atendente ou gestor).
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -136,6 +237,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Solicitacao'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
         '422':
           description: Erro de validação (campo obrigatório ausente, valor inválido, ou justificativa ausente quando prioridade é URGENTE)
           content:
@@ -155,7 +258,8 @@ paths:
       description: >
         Retorna contagens agregadas de solicitações por status, por
         prioridade, e o total geral. Usado para exibir o painel de
-        resumo na tela inicial do frontend.
+        resumo na tela inicial do frontend. Endpoint público.
+      security: []
       responses:
         '200':
           description: Resumo retornado com sucesso
@@ -181,6 +285,8 @@ paths:
     get:
       tags: [Solicitações]
       summary: Consulta os detalhes de uma solicitação
+      description: Endpoint público, não exige autenticação.
+      security: []
       parameters:
         - $ref: '#/components/parameters/SolicitacaoId'
       responses:
@@ -207,7 +313,10 @@ paths:
         Atualiza o status de uma solicitação, respeitando o fluxo de
         transições permitidas: RECEBIDA → EM_ANALISE/CANCELADA →
         AGENDADA/CANCELADA → CONCLUIDA/CANCELADA. CONCLUIDA e CANCELADA
-        são estados finais e não permitem nova transição.
+        são estados finais e não permitem nova transição. Exige
+        autenticação **e** perfil gestor.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/SolicitacaoId'
       requestBody:
@@ -229,6 +338,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Solicitacao'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          description: Usuário autenticado, mas sem permissão (perfil diferente de gestor)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+              example:
+                message: "Você não tem permissão para realizar esta ação."
         '404':
           description: Solicitação não encontrada
           content:
@@ -248,6 +367,25 @@ paths:
                 proximos_status_permitidos: []
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: "Sanctum token"
+      description: >
+        Token retornado pelo endpoint /login, enviado no header
+        Authorization como "Bearer {token}".
+
+  responses:
+    NaoAutenticado:
+      description: Requisição sem token de autenticação válido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+          example:
+            message: "Não autenticado."
+
   parameters:
     SolicitacaoId:
       name: id
@@ -277,7 +415,36 @@ components:
         timestamp:
           type: string
           format: date-time
-  
+
+    Role:
+      type: string
+      enum: [atendente, gestor]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Ana Gestora"
+        email:
+          type: string
+          format: email
+          example: "gestor@fluxsaude.local"
+        role:
+          $ref: '#/components/schemas/Role'
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          example: "1|x2tV27S0a1vywIMSd6RG6t6DeAj9CxfSF0xi7k6K62c6375f"
+
     Categoria:
       type: string
       enum: [CONSULTA, EXAME, VACINACAO, OUTRO]

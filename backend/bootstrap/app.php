@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\Auth\AuthenticationException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,9 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
-        //
-    })
+        ->withMiddleware(function (Middleware $middleware): void {
+            $middleware->redirectGuestsTo(fn () => null);
+        })
         ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson()
@@ -47,7 +49,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 422);
             }
         });
-
+        $exceptions->render(function (AuthenticationException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Não autenticado.',
+                ], 401);
+            }
+        });
+        $exceptions->render(function (AccessDeniedHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Você não tem permissão para realizar esta ação.',
+                ], 403);
+            }
+        });
         $exceptions->render(function (\Throwable $e, $request) {
             if ($request->is('api/*')) {
                 return response()->json([

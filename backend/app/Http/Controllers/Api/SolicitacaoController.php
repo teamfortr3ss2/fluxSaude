@@ -51,6 +51,8 @@ class SolicitacaoController extends Controller
 
     public function updateStatus(UpdateStatusSolicitacaoRequest $request, Solicitacao $solicitacao): JsonResponse
     {
+        $this->authorize('updateStatus', $solicitacao);
+
         try {
             $atualizada = $this->statusService->transicionar(
                 $solicitacao,

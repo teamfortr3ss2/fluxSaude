@@ -64,19 +64,25 @@ export const solicitacoesApi = {
     return handleResponse(response);
   },
 
-  async criar(dados: NovaSolicitacao): Promise<Solicitacao> {
+  async criar(dados: NovaSolicitacao, token: string): Promise<Solicitacao> {
     const response = await fetch(`${API_URL}/solicitacoes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(dados),
     });
     return handleResponse(response);
   },
 
-  async atualizarStatus(id: number, status: Status): Promise<Solicitacao> {
+  async atualizarStatus(id: number, status: Status, token: string): Promise<Solicitacao> {
     const response = await fetch(`${API_URL}/solicitacoes/${id}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ status }),
     });
     return handleResponse(response);
