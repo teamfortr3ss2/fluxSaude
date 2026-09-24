@@ -32,7 +32,7 @@ class SolicitacaoController extends Controller
         }
 
         $perPage = (int) $request->input('per_page', 15);
-        $solicitacoes = $query->orderByDesc('data_criacao')->paginate($perPage);
+        $solicitacoes = $query->orderByDesc('data_criacao')->orderByDesc('id')->paginate($perPage);
 
         return response()->json($solicitacoes);
     }
